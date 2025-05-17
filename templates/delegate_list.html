@@ -1,0 +1,354 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title|default:"代表信息列表" }} - 山西财专信息科技学院分团委</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%);
+        }
+        .title-text {
+            font-family: '方正小标宋简体', 'Noto Serif SC', serif; 
+            color: #b91c1c; /* 暗红色 */
+        }
+        @font-face {
+          font-family: '方正小标宋简体';
+          src: url("{% static 'fonts/FZXiaoBiaoSongJianTi.woff2' %}") format('woff2'); /* 确保此路径正确 */
+          font-weight: normal;
+          font-style: normal;
+        }
+        .delegate-card-business {
+            background-color: white;
+            border: 1px solid #e5e7eb; 
+            border-radius: 0.375rem; 
+            padding: 1rem; 
+            display: flex;
+            flex-direction: column; 
+            gap: 0.75rem; 
+            transition: box-shadow .3s ease-in-out, transform .3s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            min-height: 200px; 
+        }
+        .delegate-card-business:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .photo-container-biz {
+            flex-shrink: 0;
+            width: 80px; 
+            height: 104px; 
+            border: 1px solid #f3f4f6; 
+            border-radius: 0.25rem;
+            overflow: hidden;
+        }
+        .delegate-photo-biz {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-placeholder-biz {
+            width: 100%;
+            height: 100%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .card-main-info {
+            flex-grow: 1;
+        }
+        .card-main-info h3 {
+            font-size: 1.125rem; 
+            font-weight: 600; 
+            color: #b91c1c; 
+        }
+        .card-main-info .student-id {
+            font-size: 0.75rem; 
+            color: #6b7280; 
+            margin-bottom: 0.25rem;
+        }
+        .card-details p {
+            font-size: 0.8rem; 
+            color: #374151; 
+            margin-bottom: 0.1rem;
+            line-height: 1.4;
+        }
+        .card-details strong {
+            font-weight: 500;
+            color: #1f2937; 
+        }
+        .card-footer {
+            margin-top: auto; 
+            padding-top: 0.5rem;
+            border-top: 1px solid #e5e7eb; 
+        }
+        .status-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: capitalize;
+            display: inline-block;
+        }
+        .status-approved { background-color: #d1fae5; color: #065f46; }
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-rejected { background-color: #fee2e2; color: #991b1b; }
+        .checkin-yes { background-color: #cceabb; color: #2b6424; }
+        .checkin-no { background-color: #f1f1f1; color: #707070; }
+
+        .filter-form select, .filter-form input[type="text"], .filter-form button {
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #d1d5db; 
+            font-size: 0.875rem; 
+        }
+        .filter-form button {
+            background-color: #b91c1c; 
+            color: white;
+            font-weight: 500;
+        }
+        .filter-form button:hover {
+            background-color: #991b1b; 
+        }
+        .filter-form a.reset-button {
+            background-color: #6b7280; 
+        }
+        .filter-form a.reset-button:hover {
+            background-color: #4b5563; 
+        }
+
+        /* Print specific styles */
+        @media print {
+            body {
+                background: white !important;
+                -webkit-print-color-adjust: exact; 
+                color-adjust: exact; 
+            }
+            .kpi-summary-section, /* Hide KPI section on print */
+            .filter-form, .page-footer, .delegate-card-business .card-footer a, .delegate-card-business .card-footer button { 
+                display: none !important;
+            }
+            .delegate-card-business { 
+                page-break-inside: avoid !important;
+                box-shadow: none !important; 
+                border: 1px solid #ccc !important; 
+            }
+            #delegateCardsContainer { 
+                padding: 0 !important;
+                margin: 0 !important;
+                gap: 10px !important;
+            }
+            .status-badge, .checkin-yes, .checkin-no, 
+            .status-approved, .status-pending, .status-rejected {
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 md:p-6 bg-gray-50">
+    <div class="w-full max-w-7xl mx-auto">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold title-text">{{ page_title|default:"代表信息概览" }}</h1>
+            <p class="text-gray-600 mt-2 text-sm md:text-base">查看、筛选和排序代表信息</p>
+        </div>
+        <!-- START: KPI Summary Section -->
+        {% if kpi_stats %}
+        <div class="kpi-summary-section mb-6 p-4 bg-white rounded-lg shadow-md">
+            <!--<h2 class="text-xl font-semibold title-text mb-4 text-center md:text-left">数据概览</h2>-->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">总申报人数</p>
+                    <p class="text-2xl font-bold text-red-700 mt-1">{{ kpi_stats.total_delegates|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">审核通过</p>
+                    <p class="text-2xl font-bold text-green-600 mt-1">{{ kpi_stats.approved_delegates|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">待审核</p>
+                    <p class="text-2xl font-bold text-yellow-500 mt-1">{{ kpi_stats.pending_delegates|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">审核不通过</p>
+                    <p class="text-2xl font-bold text-red-500 mt-1">{{ kpi_stats.rejected_delegates|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">已签到代表</p>
+                    <p class="text-2xl font-bold text-sky-600 mt-1">{{ kpi_stats.checked_in_delegates|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">签到率(通过者)</p>
+                    <p class="text-2xl font-bold text-indigo-600 mt-1">{{ kpi_stats.check_in_rate|default:"-" }}{% if kpi_stats.check_in_rate != None and kpi_stats.check_in_rate != "-" %}%{% endif %}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <!-- END: KPI Summary Section -->
+
+        <form method="GET" action="{% url 'delegate_list' %}" class="filter-form bg-white p-4 rounded-lg shadow mb-6">
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 items-end">
+                <div>
+                    <label for="q" class="block text-sm font-medium text-gray-700 mb-1">搜索</label>
+                    <input type="text" name="q" id="q" value="{{ search_query|default:'' }}" placeholder="姓名/学号/卡号/代表团" class="w-full">
+                </div>
+                <div>
+                    <label for="approval_status" class="block text-sm font-medium text-gray-700 mb-1">审核状态</label>
+                    <select name="approval_status" id="approval_status" class="w-full">
+                        <option value="">全部状态</option>
+                        {% for value, display in approval_choices %}
+                        <option value="{{ value }}" {% if approval_status_filter == value %}selected{% endif %}>{{ display }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="is_checked_in" class="block text-sm font-medium text-gray-700 mb-1">签到状态</label>
+                    <select name="is_checked_in" id="is_checked_in" class="w-full">
+                        <option value="">全部</option>
+                        <option value="true" {% if is_checked_in_filter == 'true' %}selected{% endif %}>已签到</option>
+                        <option value="false" {% if is_checked_in_filter == 'false' %}selected{% endif %}>未签到</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="delegation" class="block text-sm font-medium text-gray-700 mb-1">代表团</label>
+                    <select name="delegation" id="delegation" class="w-full">
+                        <option value="">全部代表团</option>
+                        {% for del_name in distinct_delegations %}
+                        <option value="{{ del_name }}" {% if delegation_filter == del_name %}selected{% endif %}>{{ del_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="sort_by" class="block text-sm font-medium text-gray-700 mb-1">排序方式</label>
+                    <select name="sort_by" id="sort_by" class="w-full">
+                       <option value="card_number" {% if current_sort_by == 'card_number' %}selected{% endif %}>卡号 (低→高)</option>
+                        <option value="-card_number" {% if current_sort_by == '-card_number' %}selected{% endif %}>卡号 (高→低)</option>
+                        <option value="-submitted_at" {% if current_sort_by == '-submitted_at' %}selected{% endif %}>提交时间 (新→旧)</option>
+                        <option value="submitted_at" {% if current_sort_by == 'submitted_at' %}selected{% endif %}>提交时间 (旧→新)</option>
+                        <option value="name" {% if current_sort_by == 'name' %}selected{% endif %}>姓名 (A→Z)</option>
+                        <option value="-name" {% if current_sort_by == '-name' %}selected{% endif %}>姓名 (Z→A)</option>
+                         <option value="delegation" {% if current_sort_by == 'delegation' %}selected{% endif %}>代表团 (A→Z)</option>
+                        <option value="-delegation" {% if current_sort_by == '-delegation' %}selected{% endif %}>代表团 (Z→A)</option>
+                    </select>
+                </div>
+                <div class="col-span-1 sm:col-span-2 md:col-span-1 lg:col-auto flex space-x-2">
+                    <button type="submit" class="w-full sm:w-auto flex-grow">应用筛选</button>
+                    <a href="{% url 'delegate_list' %}" class="reset-button w-full sm:w-auto flex-grow text-center py-2 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white">重置</a>
+                </div>
+            </div>
+        </form>
+        
+        {% if delegates %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6" id="delegateCardsContainer">
+                {% for delegate in delegates %}
+                <div class="delegate-card-business">
+                    <div class="card-header">
+                        <div class="photo-container-biz">
+                            {% if delegate.photo %}
+                                <img class="delegate-photo-biz" src="{{ delegate.photo.url }}" alt="{{ delegate.name }}的照片">
+                            {% else %}
+                                <div class="photo-placeholder-biz">
+                                    {{ delegate.name|slice:":1" }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-main-info">
+                            <h3>{{ delegate.name }}</h3>
+                            <p class="student-id">{{ delegate.student_id }}</p>
+                            {% if delegate.card_number %}
+                            <p class="text-xs text-blue-600 font-semibold">证号: {{ delegate.card_number }}</p>
+                            {% else %}
+                            <p class="text-xs text-gray-400">证号: N/A</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-details text-xs">
+                        <p><strong class="font-medium">代表团:</strong> {{ delegate.delegation }}</p>
+                        <p><strong class="font-medium">班 级:</strong> {{ delegate.class_name }}</p>
+                        <p><strong class="font-medium">性 别:</strong> {{ delegate.get_gender_display }}</p>
+                        <p><strong class="font-medium">政治面貌:</strong> {{ delegate.political_status }}</p>
+                        <div class="mt-1.5 space-y-1">
+                            <p>
+                                <strong class="font-medium">审核:</strong>
+                                {% if delegate.approval_status == 'approved' %}
+                                    <span class="status-badge status-approved">{{ delegate.get_approval_status_display }}</span>
+                                {% elif delegate.approval_status == 'pending' %}
+                                    <span class="status-badge status-pending">{{ delegate.get_approval_status_display }}</span>
+                                {% elif delegate.approval_status == 'rejected' %}
+                                    <span class="status-badge status-rejected">{{ delegate.get_approval_status_display }}</span>
+                                {% else %}
+                                    <span class="status-badge">{{ delegate.get_approval_status_display }}</span>
+                                {% endif %}
+                            </p>
+                            <p>
+                                <strong class="font-medium">签到:</strong>
+                                {% if delegate.is_checked_in %}
+                                    <span class="status-badge checkin-yes">已签到</span>
+                                    {% if delegate.check_in_time %}
+                                    <span class="text-xxs text-gray-500 ml-1">({{ delegate.check_in_time|date:"m-d H:i" }})</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="status-badge checkin-no">未签到</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        {% if delegate.approval_status == 'approved' and delegate.card_number %}
+                            <a href="{% url 'home' %}?card_number={{ delegate.card_number }}"
+                               target="_blank"
+                               class="w-full block text-center py-1.5 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                                查看电子证
+                            </a>
+                        {% else %}
+                             <button disabled
+                                class="w-full block text-center py-1.5 px-3 border border-transparent rounded-md shadow-sm text-xs font-medium text-gray-400 bg-gray-200 cursor-not-allowed">
+                                {% if delegate.approval_status != 'approved' %}
+                                    待审核通过
+                                {% elif not delegate.card_number %}
+                                    无证件编号
+                                {% endif %}
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-10">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">暂无代表信息</h3>
+                <p class="mt-1 text-sm text-gray-500">根据当前筛选条件，未找到匹配的代表信息记录。</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mt-12 mb-6 text-center text-sm text-gray-600 page-footer">
+      <p class="font-medium">山西省财政税务专科学校信息科技学院分团委</p>
+      <p class="text-xs mt-1">© {% now "Y" %} 版权所有 All Rights Reserved</p>
+    </div>
+    
+    <script>
+    // Any page-specific JavaScript (not related to export) can go here.
+    // For now, this is empty as the export logic was removed.
+    document.addEventListener('DOMContentLoaded', function () {
+        // Example: console.log("Delegate list page loaded.");
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,530 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据驾驶舱 - 电子代表证管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --theme-red-primary: #C91C1C;
+            --theme-red-dark: #A51717;
+            --theme-gold-accent: #E6A23C;
+            
+            --background-main: #F8F9FA;
+            --background-card: #FFFFFF;
+            
+            --text-primary: #212529;
+            --text-secondary: #495057; 
+            --text-muted: #6C757D;     
+
+            --border-color: #DEE2E6;
+            --border-color-light: #E9ECEF; 
+
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+            --shadow-md: 0 2px 4px -1px rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 5px 7px -2px rgba(0, 0, 0, 0.05), 0 2px 3px -2px rgba(0, 0, 0, 0.03);
+        }
+
+        @font-face {
+          font-family: '方正小标宋简体';
+          src: url("{% static 'fonts/FZXiaoBiaoSongJianTi.woff2' %}") format('woff2');
+          font-weight: normal; font-style: normal;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: var(--background-main);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-size: 13px; /* Increased base font size */
+        }
+
+        .dashboard-header-outer {
+            background-color: var(--background-card);
+            border-bottom: 3px solid var(--theme-red-primary); /* Restored thicker border */
+            box-shadow: var(--shadow-md);
+        }
+        .dashboard-header-inner {
+            padding-top: 0.75rem; /* Increased */
+            padding-bottom: 0.75rem; /* Increased */
+        }
+        .main-title {
+            font-family: '方正小标宋简体', 'Inter', 'Noto Sans SC', serif;
+            font-size: 1.875rem; /* Increased (30px) */
+            font-weight: 700;
+            color: var(--theme-red-dark);
+            line-height: 1.2;
+        }
+        .subtitle {
+            font-size: 0.875rem; /* Increased (14px) */
+            color: var(--text-secondary);
+            margin-top: 0.125rem; 
+        }
+        .dashboard-header-inner .update-info p, 
+        .dashboard-header-inner .update-info a {
+            color: var(--text-muted);
+            font-size: 0.75rem; /* Increased (12px) */
+        }
+        .dashboard-header-inner .update-info a {
+            font-weight: 500;
+        }
+        .dashboard-header-inner .update-info a:hover {
+            color: var(--theme-red-primary);
+            text-decoration: underline;
+        }
+
+        .kpi-section {
+            padding: 1rem 0; /* Increased */
+        }
+        .kpi-item {
+            background-color: var(--background-card);
+            padding: 1rem; /* Increased */
+            border-radius: 6px; 
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-item::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; /* Thicker */
+            background-color: var(--theme-red-primary);
+        }
+        .kpi-item-title {
+            font-size: 0.875rem; /* Increased (14px) */
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem; 
+            font-weight: 500;
+        }
+        .kpi-item-value {
+            font-size: 2rem; /* Increased (32px) */
+            font-weight: 700;
+            color: var(--theme-red-dark);
+            line-height: 1.1; 
+            letter-spacing: -0.025em;
+            margin-top: 0.1rem;
+        }
+        .kpi-item-subtext {
+            font-size: 0.75rem; /* Increased (12px) */
+            color: var(--text-muted);
+            margin-top: 0.125rem;
+        }
+
+        .charts-grid-section {
+            padding-top: 1rem; /* Increased */
+        }
+        .chart-block {
+            background-color: var(--background-card);
+            padding: 1rem; /* Increased */
+            border-radius: 6px;
+            box-shadow: var(--shadow-lg); /* Slightly more shadow for larger cards */
+            border: 1px solid var(--border-color);
+        }
+        .chart-block-title {
+            font-size: 1.125rem; /* Increased (18px) */
+            font-weight: 600;
+            color: var(--theme-red-dark);
+            margin-bottom: 0.75rem; /* Increased */
+            padding-bottom: 0.5rem; /* Increased */
+            border-bottom: 1px solid var(--border-color-light);
+            display: flex;
+            align-items: center;
+        }
+        .chart-block-title-icon {
+            margin-right: 0.5rem; /* Increased */
+            color: var(--theme-red-primary);
+            flex-shrink: 0;
+        }
+
+        .chart-instance {
+            width: 100%;
+            height: 280px; /* General chart height - Increased */
+        }
+        #classDistributionChartContainer .chart-instance {
+            height: 350px; /* Increased */
+        }
+
+        .dashboard-footer {
+            text-align: center;
+            padding: 1.25rem 0 1rem; /* Increased */
+            margin-top: 1.25rem; /* Increased */
+            border-top: 1px solid var(--border-color);
+            font-size: 0.75rem; /* Increased (12px) */
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="dashboard-header-outer">
+        <div class="dashboard-header-inner max-w-screen-xl mx-auto flex flex-col md:flex-row justify-between items-center px-4 sm:px-6 lg:px-8"> 
+            <div>
+                <h1 class="main-title">电子代表证数据仪表盘</h1>
+                <p class="subtitle">山西财专信息科技学院分团委 - 数据洞察与决策支持</p>
+            </div>
+            <div class="update-info md:text-right mt-2 md:mt-0"> <!-- Increased mt for mobile -->
+                <p class="opacity-90">数据更新: <span id="data-timestamp" class="font-semibold">加载中...</span></p>
+                {% if user.is_authenticated and user.is_staff %}
+                <a href="{% url 'navigation_page' %}" class="block mt-1">返回系统导航</a> <!-- Increased mt -->
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-4"> <!-- Increased py -->
+        <section class="kpi-section">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5"> <!-- Adjusted grid for 6 items -->
+                <div class="kpi-item">
+                    <h3 class="kpi-item-title">总申报人数</h3>
+                    <p id="total-delegates" class="kpi-item-value">0</p>
+                </div>
+                <div class="kpi-item">
+                    <h3 class="kpi-item-title">审核通过</h3>
+                    <p id="approved-delegates" class="kpi-item-value">0</p>
+                </div>
+                <div class="kpi-item">
+                    <h3 class="kpi-item-title">待审核</h3>
+                    <p id="pending-delegates" class="kpi-item-value">0</p>
+                </div>
+                <div class="kpi-item">
+                    <h3 class="kpi-item-title">审核不通过</h3>
+                    <p id="rejected-delegates" class="kpi-item-value">0</p>
+                </div>
+                <div class="kpi-item">
+                    <h3 class="kpi-item-title">已签到代表</h3>
+                    <p id="checked-in-delegates" class="kpi-item-value">0</p>
+                </div>
+                <div class="kpi-item">
+                    <h3 class="kpi-item-title">签到率(审核通过代表)</h3>
+                    <p id="check-in-rate" class="kpi-item-value">0%</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="charts-grid-section">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5"> <!-- Increased gap -->
+                <div class="chart-block lg:col-span-1">
+                    <h2 class="chart-block-title">
+                        <svg class="chart-block-title-icon w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068M15.75 21H8.25A2.25 2.25 0 016 18.75V5.25A2.25 2.25 0 018.25 3h7.5A2.25 2.25 0 0118 5.25v8.313c0 .452-.225.866-.593 1.126a2.25 2.25 0 00-2.854.19L12.75 21M3 10.5v4.5a2.25 2.25 0 002.25 2.25H6.375c.155 0 .3-.04.43-.121a2.25 2.25 0 013.369 0c.13.08.275.121.43.121H12M3 10.5a2.25 2.25 0 012.25-2.25h4.5c.155 0 .3.04.43.121a2.25 2.25 0 003.369 0c.13-.081.275-.121.43-.121h4.5a2.25 2.25 0 012.25 2.25m-15 0v3.172c0 .53.224 1.01.593 1.348a2.25 2.25 0 003.068 0c.37-.337.593-.818.593-1.348V10.5" /></svg>
+                        审核状况分析
+                    </h2>
+                    <div id="approvalStatusChart" class="chart-instance"></div>
+                </div>
+                <div class="chart-block lg:col-span-2">
+                    <h2 class="chart-block-title">
+                        <svg class="chart-block-title-icon w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.243-3.72a9.094 9.094 0 013.741-.479 3 3 0 01-4.682-2.72m-.243 3.72a9.094 9.094 0 00-3.741.479 3 3 0 004.682 2.72M6.75 3.75l.16.087a2.25 2.25 0 013.06.479c.658.863 1.58 1.594 2.588 2.182M6.75 3.75V1.5a.75.75 0 00-.75-.75S4.5 1.125 4.5 2.25v1.5M17.25 3.75l-.16.087a2.25 2.25 0 00-3.06.479C13.342 5.176 12.42 5.907 11.412 6.5M17.25 3.75V1.5a.75.75 0 01.75-.75s1.5.375 1.5 1.5v1.5M6.75 21v-2.25a2.25 2.25 0 01.9-1.658c.77-.632 1.694-1.178 2.7-1.562M17.25 21v-2.25a2.25 2.25 0 00-.9-1.658c-.77-.632-1.694-1.178-2.7-1.562M6.75 15.75l-1.324 1.325A2.25 2.25 0 006.75 21M17.25 15.75l1.324 1.325A2.25 2.25 0 0117.25 21M12 15.75c-1.49-1.49-3.074-2.446-4.5-2.775M12 15.75c1.49-1.49 3.074-2.446 4.5-2.775" /></svg>
+                        各代表团人数对比
+                    </h2>
+                    <div id="delegationChart" class="chart-instance"></div>
+                </div>
+                <div class="chart-block lg:col-span-2">
+                    <h2 class="chart-block-title">
+                        <svg class="chart-block-title-icon w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                        政治面貌构成
+                    </h2>
+                    <div id="politicalStatusChart" class="chart-instance"></div>
+                </div>
+                <div class="chart-block lg:col-span-1">
+                    <h2 class="chart-block-title">
+                         <svg class="chart-block-title-icon w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                        性别比例分析
+                    </h2>
+                    <div id="genderChart" class="chart-instance"></div>
+                </div>
+                <div class="chart-block lg:col-span-3" id="classDistributionChartContainer">
+                    <h2 class="chart-block-title">
+                        <svg class="chart-block-title-icon w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h18M3 7.5h18M3 12h18m-4.5-4.5h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"/> </svg>
+                        各班级人数分布
+                    </h2>
+                    <div id="classDistributionChart" class="chart-instance"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="dashboard-footer">
+        <p>© {% now "Y" %} 山西省财政税务专科学校信息科技学院分团委. All Rights Reserved.</p>
+    </footer>
+
+    <script>
+        let dashboardData = null; 
+
+        function getCssVar(varName, fallbackValue) {
+            return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || fallbackValue;
+        }
+
+        const THEME_RED_PRIMARY = getCssVar('--theme-red-primary', '#C91C1C');
+        const THEME_RED_DARK = getCssVar('--theme-red-dark', '#A51717');
+        const THEME_GOLD_ACCENT = getCssVar('--theme-gold-accent', '#E6A23C');
+        
+        const TEXT_PRIMARY_COLOR = getCssVar('--text-primary', '#212529');
+        const TEXT_SECONDARY_COLOR = getCssVar('--text-secondary', '#495057');
+        const BORDER_COLOR = getCssVar('--border-color', '#DEE2E6');
+        const BORDER_COLOR_LIGHT = getCssVar('--border-color-light', '#E9ECEF');
+
+        const APPROVAL_STATUS_COLORS = {
+            '审核通过': '#28A745', 
+            '待审核': THEME_GOLD_ACCENT,
+            '审核不通过': THEME_RED_PRIMARY,
+            '其他': '#ADB5BD'
+        };
+
+        const POLITICAL_STATUS_SPECIFIC_COLORS = {
+            '中共党员': '#D2691E', 
+            '中共预备党员': THEME_GOLD_ACCENT, 
+            '共青团员': '#F08080', 
+            '群众': '#BDBDBD', 
+            '民革党员': '#87CEEB', 
+            '民盟盟员': '#98FB98', 
+            '其他': '#CCCCCC' 
+        };
+        
+        const COMMON_TOOLTIP_STYLE = {
+            backgroundColor: 'rgba(255,255,255,0.98)',
+            borderColor: BORDER_COLOR,
+            borderWidth: 1,
+            padding: [5, 8], /* Increased */
+            textStyle: { color: TEXT_PRIMARY_COLOR, fontSize: 12 }, /* Increased */
+            confine: true
+        };
+
+        const COMMON_AXIS_STYLE = {
+            axisLine: { lineStyle: { color: BORDER_COLOR } },
+            axisTick: { show: false },
+            axisLabel: { color: TEXT_SECONDARY_COLOR, fontSize: 11 }, /* Increased */
+            splitLine: { lineStyle: { type: 'dashed', color: BORDER_COLOR_LIGHT } }
+        };
+        
+        const COMMON_LEGEND_STYLE = {
+            bottom: '2%', 
+            left: 'center',
+            icon: 'circle',
+            itemGap: 8, /* Increased */
+            itemHeight: 10, /* Increased */
+            itemWidth: 10,  /* Increased */
+            textStyle: { fontSize: 11, color: TEXT_SECONDARY_COLOR } /* Increased */
+        };
+
+        function initChart(elementId, option) {
+            const chartDom = document.getElementById(elementId);
+            if (chartDom) {
+                let existingInstance = echarts.getInstanceByDom(chartDom);
+                if (existingInstance) { existingInstance.dispose(); }
+                const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
+                myChart.setOption(option);
+                window.addEventListener('resize', () => myChart.resize());
+                return myChart;
+            }
+            console.error("Chart DOM element not found:", elementId);
+            return null;
+        }
+
+        function updateKpiCards(data) {
+            document.getElementById('total-delegates').textContent = data.kpi.total_delegates || '0';
+            document.getElementById('approved-delegates').textContent = data.kpi.approved_delegates || '0';
+            document.getElementById('pending-delegates').textContent = data.kpi.pending_delegates || '0';
+            document.getElementById('rejected-delegates').textContent = data.kpi.rejected_delegates || '0'; // New KPI
+            document.getElementById('checked-in-delegates').textContent = data.kpi.checked_in_delegates || '0';
+            document.getElementById('check-in-rate').textContent = `${data.kpi.check_in_rate || '0'}%`;
+            document.getElementById('data-timestamp').textContent = new Date(data.timestamp).toLocaleString('zh-CN', {
+                year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function getApprovalStatusOption(data) {
+            const chartData = data.approval_status_distribution.map(item => ({
+                name: item.name, value: item.value,
+                itemStyle: { color: APPROVAL_STATUS_COLORS[item.name] || APPROVAL_STATUS_COLORS['其他'] }
+            }));
+            return {
+                tooltip: { ...COMMON_TOOLTIP_STYLE, trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+                legend: COMMON_LEGEND_STYLE,
+                series: [{
+                    name: '审核状态', type: 'pie', radius: ['50%', '70%'], /* Increased radius */
+                    itemStyle: { borderRadius: 5, borderColor: '#fff', borderWidth: 2 }, /* Slightly larger */
+                    label: { show: true, position: 'outside', formatter: '{b}\n{d}%', fontSize: 11, color: TEXT_SECONDARY_COLOR, lineHeight: 14 }, /* Increased */
+                    labelLine: { length: 6, length2: 8, smooth: 0.5, lineStyle: { color: BORDER_COLOR } }, /* Increased length */
+                    data: chartData,
+                    emphasis: { label: { show: true, fontSize: 13, fontWeight: '600' }, itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.1)'}}
+                }]
+            };
+        }
+
+        function getDelegationOption(data) {
+            return {
+                tooltip: { ...COMMON_TOOLTIP_STYLE, trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: '2%', right: '3%', bottom: data.delegation_distribution.length > 6 ? '15%' : '8%', top: '12%', containLabel: true }, /* More space */
+                xAxis: {
+                    ...COMMON_AXIS_STYLE, type: 'category', data: data.delegation_distribution.map(item => item.name),
+                    axisLabel: { ...COMMON_AXIS_STYLE.axisLabel, interval: 0, rotate: data.delegation_distribution.length > 6 ? 20 : 0 } 
+                },
+                yAxis: {
+                    ...COMMON_AXIS_STYLE, type: 'value', name: '人数', nameGap: 15, /* Increased */
+                    nameTextStyle: { color: TEXT_SECONDARY_COLOR, fontSize: 11, padding: [0,0,0,25] } /* Increased */
+                },
+                series: [{
+                    name: '人数', type: 'bar', barMaxWidth: 25, /* Increased */
+                    data: data.delegation_distribution.map(item => item.value),
+                    itemStyle: { color: THEME_RED_PRIMARY, borderRadius: [3, 3, 0, 0] }, 
+                    emphasis: { focus: 'series', itemStyle: { color: THEME_RED_DARK }}
+                }]
+            };
+        }
+
+        function getPoliticalStatusOption(data) {
+            const chartData = data.political_status_distribution;
+            // const useBarChart = chartData.length > 5; // Logic for bar chart can be added here if needed
+
+            // Currently defaulting to Pie chart as per existing code structure
+            // if (useBarChart) {
+                 // ... (条形图逻辑保持不变，如果需要实现，可以在此添加)
+            // } else { // Pie chart
+            const pieData = chartData.map(item => ({
+                name: item.name,
+                value: item.value,
+                itemStyle: { color: POLITICAL_STATUS_SPECIFIC_COLORS[item.name] || POLITICAL_STATUS_SPECIFIC_COLORS['其他'] }
+            }));
+            return {
+                tooltip: { ...COMMON_TOOLTIP_STYLE, trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+                legend: { 
+                    ...COMMON_LEGEND_STYLE, 
+                    type: 'scroll', 
+                    orient: 'vertical', 
+                    right: '5%', 
+                    top: 'center', 
+                    itemGap: 6 // Overrides common style for potentially tighter vertical spacing
+                },
+                series: [{
+                    name: '政治面貌', 
+                    type: 'pie', 
+                    radius: ['45%', '65%'], 
+                    center: ['30%', '50%'], // Adjusted center to make space for right-side legend
+                    data: pieData,
+                    itemStyle: { borderRadius: 5, borderColor: '#fff', borderWidth: 2 }, 
+                    label: { show: false }, // Labels on pie might collide with legend; tooltip is primary
+                    labelLine: { show: false }, 
+                    emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.1)'}}
+                }]
+            };
+            // }
+        }
+
+        function getGenderOption(data) {
+             return {
+                tooltip: { ...COMMON_TOOLTIP_STYLE, trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+                legend: COMMON_LEGEND_STYLE,
+                series: [{
+                    name: '性别', type: 'pie', radius: '60%', /* Increased */ avoidLabelOverlap: false,
+                    data: data.gender_distribution,
+                    itemStyle: { borderRadius: 5, borderColor: '#fff', borderWidth: 2 }, 
+                    label: { show: true, formatter: '{b}\n{d}%', fontSize: 11, color: TEXT_SECONDARY_COLOR, lineHeight: 14 }, /* Increased */
+                    labelLine: { length: 5, length2: 7, smooth: true, lineStyle: { color: BORDER_COLOR } }, /* Increased */
+                    emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.1)'}}
+                }],
+                color: [THEME_RED_PRIMARY, THEME_GOLD_ACCENT, '#ADB5BD'] // Specific colors for gender
+            };
+        }
+
+        function getClassDistributionOption(data) {
+            const displayData = data.class_distribution; 
+            const yAxisData = displayData.map(item => item.name);
+
+            let option = {
+                tooltip: { ...COMMON_TOOLTIP_STYLE, trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: '1%', right: '4%', bottom: '3%', top: '6%', containLabel: true }, /* Adjusted for larger fonts/bars */
+                xAxis: { ...COMMON_AXIS_STYLE, type: 'value' },
+                yAxis: {
+                    ...COMMON_AXIS_STYLE, type: 'category', data: yAxisData,
+                    axisLabel: { ...COMMON_AXIS_STYLE.axisLabel, interval: 0, fontSize: 11, width: 90, overflow: 'truncate' }, /* Increased */
+                    triggerEvent: true
+                },
+                series: [{
+                    name: '人数', type: 'bar', data: displayData.map(item => item.value), barMaxWidth: 18, /* Increased */
+                    itemStyle: { color: THEME_RED_DARK, borderRadius: [0, 3, 3, 0] }, 
+                    label: { show: true, position: 'right', fontSize: 10, color: TEXT_PRIMARY_COLOR }, /* Increased */
+                    emphasis: { focus: 'series', itemStyle: { color: THEME_RED_PRIMARY } }
+                }]
+            };
+
+            const chartHeight = 350; // from CSS
+            const gridTop = (option.grid.top.endsWith('%') ? parseFloat(option.grid.top) / 100 * chartHeight : parseFloat(option.grid.top || 0));
+            const gridBottom = (option.grid.bottom.endsWith('%') ? parseFloat(option.grid.bottom) / 100 * chartHeight : parseFloat(option.grid.bottom || 0));
+            const availableHeight = chartHeight - gridTop - gridBottom;
+            const itemHeightEstimate = 22; // Increased estimate for larger items
+            const visibleItems = Math.max(1, Math.floor(availableHeight / itemHeightEstimate));
+
+
+            if (yAxisData.length > visibleItems) { 
+                option.dataZoom = [
+                    {
+                        type: 'slider', yAxisIndex: 0, zoomLock: true, width: 12, /* Increased */
+                        right: 10, /* Increased */
+                        startValue: 0, endValue: Math.max(0, visibleItems - 1),
+                        handleSize: '60%', /* Make handle visible */
+                        borderColor: "transparent",
+                        backgroundColor: '#f0f0f0', fillerColor: 'rgba(167,23,23,0.35)', /* More visible, slightly darker */
+                        showDataShadow: false, brushSelect: false, moveOnMouseMove: true,
+                        dataBackground: { lineStyle: { width: 0}, areaStyle: { opacity: 0} }
+                    },
+                    { type: 'inside', yAxisIndex: 0, zoomLock: true }
+                ];
+                option.grid.right = '6%'; // Adjusted for slightly wider scrollbar
+            }
+            return option;
+        }
+
+        async function loadDashboardData() {
+            try {
+                const loadingElements = document.querySelectorAll('.kpi-item-value, #data-timestamp');
+                loadingElements.forEach(el => el.textContent = '...');
+                document.querySelectorAll('.chart-instance').forEach(el => {
+                    const titleEl = el.parentElement.querySelector('.chart-block-title');
+                    let titleText = '图表';
+                    if (titleEl) {
+                        // Extract text content, excluding SVG icon content
+                        titleText = Array.from(titleEl.childNodes)
+                            .filter(node => node.nodeType === Node.TEXT_NODE)
+                            .map(node => node.textContent.trim())
+                            .join(' ') || titleEl.textContent.trim() || '图表';
+                    }
+                    el.innerHTML = `<div class="flex items-center justify-center h-full text-gray-500 text-sm">${titleText}数据加载中...</div>`; /* Slightly larger loading text */
+                });
+
+                const response = await fetch("{% url 'dashboard_data_api' %}");
+                if (!response.ok) { throw new Error(`服务器错误 ${response.status}`); }
+                dashboardData = await response.json();
+                if (Object.keys(dashboardData).length === 0 || !dashboardData.kpi) { throw new Error("数据格式不正确或为空"); }
+
+                updateKpiCards(dashboardData);
+                document.querySelectorAll('.chart-instance').forEach(el => el.innerHTML = ''); // Clear loading messages
+
+                initChart('approvalStatusChart', getApprovalStatusOption(dashboardData));
+                initChart('delegationChart', getDelegationOption(dashboardData));
+                initChart('politicalStatusChart', getPoliticalStatusOption(dashboardData));
+                initChart('genderChart', getGenderOption(dashboardData));
+                initChart('classDistributionChart', getClassDistributionOption(dashboardData));
+
+            } catch (error) {
+                console.error("仪表盘数据加载或图表渲染失败:", error);
+                document.getElementById('data-timestamp').textContent = '数据加载失败';
+                document.querySelectorAll('.chart-instance').forEach(el => {
+                    const titleEl = el.parentElement.querySelector('.chart-block-title');
+                    let titleText = '图表';
+                     if (titleEl) {
+                        titleText = Array.from(titleEl.childNodes)
+                            .filter(node => node.nodeType === Node.TEXT_NODE)
+                            .map(node => node.textContent.trim())
+                            .join(' ') || titleEl.textContent.trim() || '图表';
+                    }
+                    el.innerHTML = `<div class="flex items-center justify-center h-full text-red-600 font-semibold text-sm p-4 text-center">${titleText}加载失败: ${error.message}</div>`; /* Larger error text */
+                });
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadDashboardData);
+    </script>
+</body>
+</html>

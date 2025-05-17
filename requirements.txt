@@ -1,0 +1,16 @@
+asgiref==3.8.1
+cffi==1.17.1
+cryptography==44.0.3
+Django==5.2.1
+django-extensions==4.1
+django-filter==25.1
+djangorestframework==3.16.0
+Markdown==3.8
+MarkupSafe==3.0.2
+pillow==11.2.1
+pycparser==2.22
+pyOpenSSL==25.0.0
+sqlparse==0.5.3
+typing_extensions==4.13.2
+tzdata==2025.2
+Werkzeug==3.1.3

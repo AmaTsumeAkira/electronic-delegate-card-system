@@ -1,0 +1,489 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扫码签到</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%); /* Updated background */
+            color: #374151; /* Default text color */
+            line-height: 1.6;
+        }
+        .content-container { /* Unified container style */
+            background-color: white;
+            padding: 1.5rem; /* p-6 */
+            border-radius: 0.75rem; /* rounded-xl is 1rem, rounded-lg is 0.5rem. Let's use 0.75rem for consistency */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            border: 1px solid #fde68a; /* Light gold border */
+        }
+        #qr-reader {
+            width: 100%;
+            border: 2px dashed #dc2626; 
+            border-radius: 8px;
+            margin: 0 auto; 
+            background-color: #fdf2f2; /* Light pinkish for scanner bg */
+            position: relative; 
+            overflow: hidden; 
+        }
+        #qr-reader video {
+            width: 100% !important;
+            height: auto !important;
+            display: block;
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-weight: 600; 
+            text-align: center;
+            border: 1px solid transparent;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .status-success { background-color: #dcfce7; color: #16a34a; border-color: #86efac;}
+        .status-error   { background-color: #fee2e2; color: #dc2626; border-color: #fca5a5;}
+        .status-warning { background-color: #fef9c3; color: #ca8a04; border-color: #fde68a;}
+        .status-info    { background-color: #fffbeb; color: #b45309; border-color: #fcd34d;} /* Amber/Yellow for info */
+
+        .btn {
+            padding: 0.75rem 1.5rem; /* py-3 px-6 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 700; /* font-bold */
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            display: inline-flex; 
+            align-items: center;
+            justify-content: center;
+            border: none;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); /* shadow-md */
+            color: white;
+        }
+        .btn:hover {
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); /* shadow-lg */
+        }
+        .btn-primary { 
+            background-image: linear-gradient(to right, #ef4444, #dc2626);
+        }
+        .btn-primary:hover { 
+            background-image: linear-gradient(to right, #dc2626, #b91c1c);
+        }
+        .btn-secondary { 
+            background-image: linear-gradient(to right, #f59e0b, #d97706); /* Gold/Yellow gradient */
+        }
+        .btn-secondary:hover { 
+            background-image: linear-gradient(to right, #d97706, #b45309); /* Darker Gold/Yellow */
+        }
+        .btn:disabled {
+            background-image: none; 
+            background-color: #d1d5db; 
+            color: #6b7280;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .hidden { display: none !important; } 
+
+        .header-title {
+            font-family: '方正小标宋简体', 'Noto Serif SC', serif; 
+            color: #b91c1c;
+        }
+        @font-face {
+          font-family: '方正小标宋简体';
+          src: url("{% static 'fonts/FZXiaoBiaoSongJianTi.woff2' %}") format('woff2');
+          font-weight: normal;
+          font-style: normal;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 sm:p-6">
+    <div class="w-full max-w-2xl text-center mb-6">
+        <h1 class="text-3xl sm:text-4xl font-bold header-title">代表扫码签到</h1>
+        {% if user.is_authenticated %}
+            <p class="text-sm text-gray-700 mt-2"> <!-- Adjusted text color -->
+                操作员: <span class="font-semibold">{{ user.get_full_name|default:user.username }}</span> |
+                <a href="{% url 'admin:logout' %}?next={{ request.path|urlencode }}" class="text-red-600 hover:underline font-medium">安全退出</a>
+            </p>
+        {% endif %}
+    </div>
+
+    <div class="w-full max-w-xl content-container" id="qr-reader-outer-container"> <!-- Applied .content-container -->
+        <div id="qr-reader"></div>
+        <div class="text-center mt-4 space-x-2">
+            <button id="start-scan-btn" class="btn btn-primary">开始扫描</button>
+            <button id="stop-scan-btn" class="btn btn-secondary hidden">停止扫描</button>
+        </div>
+        <p id="camera-permission-status" class="text-xs text-center text-gray-500 mt-3 min-h-[1em]"></p>
+        
+        <!-- Scan feedback elements moved here -->
+        <h2 class="text-xl font-semibold text-gray-800 mt-6 mb-3 text-center border-b pb-2 border-gray-200">签到状态反馈</h2>
+        <div id="status-output" class="status-message status-info">等待扫描或操作...</div>
+        <div id="delegate-info" class="mt-4 text-sm text-gray-700 text-left space-y-1 p-3 bg-gray-50 rounded border hidden">
+        </div>
+    </div>
+
+    <!-- Removed the separate scan-result container -->
+
+    <div id="manual-checkin-container" class="w-full max-w-xl mt-6 content-container">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center border-b pb-2 border-gray-200">手动签到</h2>
+        <div class="space-y-3 p-1">
+            <div>
+                <label for="manual-card-number-input" class="block text-sm font-medium text-gray-700 mb-1">代表证卡号:</label>
+                <input type="text" id="manual-card-number-input" name="manual_card_number"
+                       class="mt-1 block w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                       placeholder="输入代表证卡号">
+            </div>
+            <button id="manual-checkin-btn" class="w-full btn btn-primary py-2.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                提交手动签到
+            </button>
+            <p id="manual-checkin-status" class="text-xs text-center text-gray-500 mt-2 min-h-[1em]"></p> <!-- Corrected class typo here -->
+        </div>
+    </div>
+    
+    <div class="mt-10 text-center text-sm text-gray-600"> <!-- Added footer -->
+      <p class="font-medium">山西省财政税务专科学校信息科技学院分团委</p>
+      <p class="text-xs mt-1">© {% now "Y" %} 版权所有 All Rights Reserved</p>
+    </div>
+
+    <script>
+        const qrReaderElement = document.getElementById('qr-reader');
+        const statusOutput = document.getElementById('status-output');
+        const delegateInfoDiv = document.getElementById('delegate-info');
+        const startScanBtn = document.getElementById('start-scan-btn');
+        const stopScanBtn = document.getElementById('stop-scan-btn');
+        const cameraPermissionStatus = document.getElementById('camera-permission-status');
+        
+        const manualCardNumberInput = document.getElementById('manual-card-number-input');
+        const manualCheckinBtn = document.getElementById('manual-checkin-btn');
+        const manualCheckinStatus = document.getElementById('manual-checkin-status');
+
+        let html5QrCode = null;
+        let currentScannedDelegateData = null; // Holds delegate data for the CURRENT operation being processed
+
+        // For duplicate scan prevention
+        const DUPLICATE_SCAN_COOLDOWN_MS = 15000; // 15 seconds
+        let lastSuccessfullyProcessedCardNumber = null;
+        let lastSuccessfulProcessTime = null;
+        let lastProcessedDelegateDataForCooldown = null; // Holds delegate data for the LAST processed card for cooldown msg
+
+
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`QR Code matched = ${decodedText}`, decodedResult);
+            
+            if (decodedText.startsWith("DELEGATE_CARD_NUMBER:")) {
+                const cardNumber = decodedText.split(":")[1].trim();
+                if (cardNumber === "") {
+                    displayResult("无效的二维码内容格式 (卡号为空)。", "error");
+                    return;
+                }
+
+                // Check for duplicate scan within cooldown
+                if (cardNumber === lastSuccessfullyProcessedCardNumber &&
+                    (Date.now() - lastSuccessfulProcessTime < DUPLICATE_SCAN_COOLDOWN_MS)) {
+                    const timeLeft = Math.ceil((DUPLICATE_SCAN_COOLDOWN_MS - (Date.now() - lastSuccessfulProcessTime)) / 1000);
+                    displayResult(`卡号 [${cardNumber}] 短时间内已处理。请在 ${timeLeft} 秒后重试。`, "warning", lastProcessedDelegateDataForCooldown);
+                    // Vibrate for feedback on duplicate if possible
+                    if (navigator.vibrate) navigator.vibrate(100);
+                    return;
+                }
+                // If not a duplicate or cooldown passed, proceed
+                statusOutput.textContent = '二维码已识别，正在处理签到...';
+                delegateInfoDiv.classList.add('hidden'); 
+                delegateInfoDiv.innerHTML = '';
+                statusOutput.className = 'status-message status-info';
+                processCheckIn(cardNumber);
+
+            } else {
+                displayResult(`无法识别的二维码内容: "${decodedText}"`, "error");
+                 if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Vibrate for error
+            }
+        }
+
+        function onScanFailure(error) {
+            if (!(typeof error === 'string' && (error.includes("NotFoundException") || error.includes("continuous")))) {
+                 console.warn(`QR Scan Error: ${error}`);
+            }
+        }
+
+        function displayResult(message, type = "info", delegateData = null) {
+            statusOutput.textContent = message;
+            let statusClass = 'status-info';
+            if (type === "success") statusClass = 'status-success';
+            else if (type === "error") statusClass = 'status-error';
+            else if (type === "warning") statusClass = 'status-warning';
+            statusOutput.className = `status-message ${statusClass}`;
+
+            if (delegateData) {
+                delegateInfoDiv.innerHTML = `
+                    <p><strong>姓名:</strong> ${delegateData.name || 'N/A'}</p>
+                    <p><strong>学号:</strong> ${delegateData.student_id || 'N/A'}</p>
+                    <p><strong>代表团:</strong> ${delegateData.delegation || 'N/A'}</p>
+                    ${delegateData.check_in_time && type !== 'success' ? `<p><strong>原签到时间:</strong> ${new Date(delegateData.check_in_time).toLocaleString('zh-CN')}</p>` : ''}
+                `;
+                delegateInfoDiv.classList.remove('hidden');
+            } else {
+                delegateInfoDiv.classList.add('hidden');
+                delegateInfoDiv.innerHTML = '';
+            }
+        }
+
+        async function processCheckIn(cardNumber) {
+            displayResult(`正在为卡号 [${cardNumber}] 查询代表信息...`, "info");
+            currentScannedDelegateData = null; 
+            let delegateId = null;
+
+            try {
+                const delegateResp = await fetch(`/api/delegates/by-card-number/${cardNumber}/`);
+                if (!delegateResp.ok) {
+                    const errorJson = await delegateResp.json().catch(() => ({ error: `HTTP ${delegateResp.status}` })); 
+                    // This card number was processed by the server (even if not found)
+                    lastSuccessfullyProcessedCardNumber = cardNumber;
+                    lastSuccessfulProcessTime = Date.now();
+                    lastProcessedDelegateDataForCooldown = null; // No valid delegate data
+                    currentScannedDelegateData = null;
+                    throw new Error(errorJson.detail || errorJson.error || `获取代表信息失败 (HTTP ${delegateResp.status})`);
+                }
+                const delegateData = await delegateResp.json();
+                currentScannedDelegateData = delegateData; 
+                delegateId = delegateData.id;
+
+                if (!delegateId) { 
+                    // Card was found, but data is incomplete from API's perspective
+                    lastSuccessfullyProcessedCardNumber = cardNumber;
+                    lastSuccessfulProcessTime = Date.now();
+                    lastProcessedDelegateDataForCooldown = currentScannedDelegateData;
+                    throw new Error("API返回的代表信息中未包含ID。");
+                }
+                displayResult(`代表: ${delegateData.name} (${delegateData.student_id})。正在提交签到...`, "info", delegateData);
+
+                const csrftoken = getCookie('csrftoken');
+                const checkInResponse = await fetch(`/api/delegates/${delegateId}/check-in/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                });
+                const checkInResult = await checkInResponse.json();
+
+                if (checkInResponse.ok) {
+                    let messageToShow = checkInResult.message || "签到操作完成";
+                    let typeToShow = "info";
+
+                    if (checkInResult.status === 'checked_in_successfully') {
+                        messageToShow = `签到成功: ${currentScannedDelegateData.name} (时间: ${new Date(checkInResult.check_in_time).toLocaleTimeString('zh-CN')})`;
+                        typeToShow = "success";
+                        if (navigator.vibrate) navigator.vibrate(200); // Vibrate for success
+                    } else if (checkInResult.status === 'already_checked_in') {
+                        messageToShow = `重复签到: ${currentScannedDelegateData.name} (已于 ${new Date(checkInResult.check_in_time).toLocaleTimeString('zh-CN')} 签到)`;
+                        typeToShow = "warning";
+                        if (navigator.vibrate) navigator.vibrate([100,50,100]);
+                    }
+                    displayResult(messageToShow, typeToShow, currentScannedDelegateData);
+                    // Update cooldown trackers on successful processing or known status
+                    lastSuccessfullyProcessedCardNumber = cardNumber;
+                    lastSuccessfulProcessTime = Date.now();
+                    lastProcessedDelegateDataForCooldown = currentScannedDelegateData;
+                } else {
+                    // Check-in API failed for a known delegate
+                    lastSuccessfullyProcessedCardNumber = cardNumber;
+                    lastSuccessfulProcessTime = Date.now();
+                    lastProcessedDelegateDataForCooldown = currentScannedDelegateData;
+                    throw new Error(checkInResult.error || checkInResult.message || "签到API调用失败。");
+                }
+
+            } catch (error) {
+                console.error("签到处理错误:", error);
+                displayResult(`处理失败: ${error.message}`, "error", currentScannedDelegateData); 
+                // Vibrate for error if not already handled by specific cases
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+                // Cooldown variables should have been set if the error originated from a server response about the card/delegate.
+                // If it's a network error before fetch, they won't be set, allowing retry without cooldown.
+            }
+        }
+
+        function startScanning() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                console.log("Scanner is already running.");
+                return;
+            }
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("qr-reader", { verbose: false }); 
+            }
+
+            startScanBtn.disabled = true;
+            stopScanBtn.disabled = false; // Will be enabled if start is successful
+            cameraPermissionStatus.textContent = "正在请求摄像头权限...";
+            displayResult("正在启动摄像头...", "info");
+
+            Html5Qrcode.getCameras().then(devices => {
+                cameraPermissionStatus.textContent = ""; 
+                if (devices && devices.length) {
+                    let cameraId = devices[0].id; 
+                    const rearCamera = devices.find(device => typeof device.label === 'string' && (device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear') || device.label.toLowerCase().includes('后置')));
+                    if (rearCamera) {
+                        cameraId = rearCamera.id;
+                        console.log("Attempting to use rear camera:", rearCamera);
+                    } else {
+                        console.log("Using default camera:", devices[0]);
+                    }
+
+                    const qrBoxFunction = (viewfinderWidth, viewfinderHeight) => {
+                        let minEdgePercentage = 0.7; 
+                        let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                        let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+                        return {
+                            width: qrboxSize,
+                            height: qrboxSize
+                        };
+                    };
+
+                    html5QrCode.start(
+                        cameraId, 
+                        {
+                            fps: 10,
+                            qrbox: qrBoxFunction, 
+                            aspectRatio: 1.0 
+                        },
+                        onScanSuccess,
+                        onScanFailure)
+                    .then(() => {
+                        displayResult("摄像头已启动，请将二维码对准扫描框。", "info");
+                        startScanBtn.classList.add('hidden');
+                        stopScanBtn.classList.remove('hidden');
+                        stopScanBtn.disabled = false; // Enable stop button
+                        startScanBtn.disabled = false; // Re-enable start button conceptually (it's hidden)
+                    })
+                    .catch(err => {
+                        console.error("无法启动摄像头扫描:", err);
+                        displayResult(`无法启动摄像头: ${err.message || err}. 请确保已授予权限并没有其他应用占用摄像头。`, "error");
+                        cameraPermissionStatus.textContent = `启动失败: ${err.message || err}`;
+                        startScanBtn.disabled = false;
+                        stopScanBtn.disabled = true; // Keep stop disabled if start fails
+                        stopScanBtn.classList.add('hidden');
+                        startScanBtn.classList.remove('hidden');
+                    });
+                } else {
+                    displayResult("未找到可用的摄像头设备。", "error");
+                    cameraPermissionStatus.textContent = "未找到摄像头。";
+                    startScanBtn.disabled = false;
+                    stopScanBtn.disabled = true;
+                }
+            }).catch(err => {
+                console.error("获取摄像头列表失败:", err);
+                displayResult(`获取摄像头列表失败: ${err.message || err}. 请检查浏览器摄像头权限设置。`, "error");
+                cameraPermissionStatus.textContent = `权限错误: ${err.message || err}`;
+                startScanBtn.disabled = false;
+                stopScanBtn.disabled = true;
+            });
+        }
+
+        function stopScanning() {
+            startScanBtn.disabled = true; // Disable while attempting to stop
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop()
+                .then(() => {
+                    displayResult("扫描已停止。", "info");
+                    startScanBtn.classList.remove('hidden');
+                    stopScanBtn.classList.add('hidden');
+                    console.log("QR Code scanning stopped.");
+                })
+                .catch(err => {
+                    console.error("停止扫描失败:", err);
+                    displayResult("停止扫描时发生错误。", "error");
+                })
+                .finally(() => {
+                    startScanBtn.disabled = false;
+                    stopScanBtn.disabled = true; 
+                });
+            } else {
+                // Scanner wasn't running or object not initialized
+                startScanBtn.disabled = false; 
+                stopScanBtn.disabled = true;
+                startScanBtn.classList.remove('hidden');
+                stopScanBtn.classList.add('hidden');
+            }
+        }
+        
+        async function handleManualCheckin() {
+            const cardNumber = manualCardNumberInput.value.trim();
+            if (!cardNumber) {
+                manualCheckinStatus.textContent = "请输入代表证卡号。";
+                manualCardNumberInput.focus();
+                return;
+            }
+            // Optional: Basic validation for card number format if any (e.g., length)
+            // if (cardNumber.length !== 10) { // Example length
+            //    manualCheckinStatus.textContent = "代表证卡号格式似乎不正确。";
+            //    return;
+            // }
+
+            manualCheckinStatus.textContent = "正在提交...";
+            manualCheckinBtn.disabled = true;
+
+            // Check for duplicate manual submission within cooldown
+            if (cardNumber === lastSuccessfullyProcessedCardNumber &&
+                (Date.now() - lastSuccessfulProcessTime < DUPLICATE_SCAN_COOLDOWN_MS)) {
+                const timeLeft = Math.ceil((DUPLICATE_SCAN_COOLDOWN_MS - (Date.now() - lastSuccessfulProcessTime)) / 1000);
+                displayResult(`卡号 [${cardNumber}] 短时间内已处理。请在 ${timeLeft} 秒后重试。`, "warning", lastProcessedDelegateDataForCooldown);
+                manualCheckinStatus.textContent = `已处理，请 ${timeLeft} 秒后重试。`;
+                manualCheckinBtn.disabled = false;
+                return;
+            }
+            
+            try {
+                await processCheckIn(cardNumber);
+                manualCardNumberInput.value = ''; // Clear input on success
+            } catch (e) {
+                // processCheckIn itself handles displayResult for errors
+                console.error("Manual check-in process error:", e);
+            } finally {
+                manualCheckinStatus.textContent = ""; // Clear specific message, global status is updated by processCheckIn
+                manualCheckinBtn.disabled = false;
+            }
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        startScanBtn.addEventListener('click', startScanning);
+        stopScanBtn.addEventListener('click', stopScanning);
+        manualCheckinBtn.addEventListener('click', handleManualCheckin);
+        manualCardNumberInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent default form submission if it were in a form
+                handleManualCheckin();
+            }
+        });
+
+        stopScanBtn.disabled = true; 
+        displayResult("点击“开始扫描”按钮启动摄像头，或使用下方手动输入进行签到。", "info");
+
+        window.addEventListener('beforeunload', () => {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(e => console.error("Error stopping scanner on page unload", e));
+            }
+        });
+    </script>
+</body>
+</html>

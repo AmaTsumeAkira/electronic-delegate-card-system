@@ -1,0 +1,618 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电子代表证</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/2.9.5/dom-to-image-more.min.js" ></script>
+  <style>
+    body {
+      font-family: 'Noto Serif SC', serif;
+      background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%);
+    }
+    * {
+      font-family: 'Noto Serif SC', serif !important; 
+      box-sizing: border-box;
+    }
+    @font-face {
+      font-family: '方正小标宋简体';
+      src: url("{% static 'fonts/FZXiaoBiaoSongJianTi.woff2' %}") format('woff2'); 
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    .card-gradient {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    }
+    .watermark::before {
+      content: "电子代表证";
+      position: absolute; font-size: 80px; font-weight: 700; color: rgba(255, 255, 255, 0.1);
+      top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
+      white-space: nowrap; pointer-events: none; z-index: 0;
+    }
+    .border-gold { border: 2px solid #facc15; }
+    .shadow-gold { box-shadow: 0 4px 20px rgba(250, 204, 21, 0.3); }
+
+    .card-container {
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      perspective: 1000px;
+    }
+    #card-scale {
+      width: 448px; 
+      height: 288px; 
+      transform-origin: center center;
+      position: absolute;
+      transition: transform 0.6s ease-in-out;
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+
+    .card-front, .card-back {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      backface-visibility: hidden;
+      border-radius: 12px;
+      overflow: hidden;
+      transform-style: preserve-3d;
+    }
+    .card-back {
+       transform: rotateY(180deg);
+      background-image: url("{% static 'images/bj.jpg' %}"); 
+      background-size: 210% auto; background-position: top center; background-repeat: no-repeat;
+      background-color: transparent;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 13px;
+      border: 2px solid #facc15; box-shadow: 0 4px 20px rgba(250, 204, 21, 0.3);
+    }
+
+    #card-front .top-bar {
+        position: absolute; top: 0; left: 0; width: 100%; height: 56px;
+        padding: 8px 24px; background: rgba(255,255,255,0.1); backdrop-filter: blur(4px);
+        display: flex; align-items: center; justify-content: space-between; z-index: 20;
+    }
+    #card-front .top-bar-left { display: flex; align-items: center; }
+    #card-front .top-bar-right { text-align: right; }
+    #card-front .content-area {
+        position: absolute; top: 56px; left: 0; width: 100%; padding: 16px 24px; z-index: 10;
+    }
+    #card-front .photo-info-block { display: flex; align-items: stretch; margin-bottom: 16px; }
+    #card-front .photo-container { width: 96px; height: 128px; flex-shrink: 0; }
+    #card-front .photo-container img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 2px solid white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); }
+    #card-front .info-details { margin-left: 24px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    #card-front .name-badge-line { display: flex; align-items: center; margin-bottom: 4px; }
+    #card-front .name { font-size: 30px; line-height: 36px; font-weight: 900; color: white; margin-right: 12px; white-space: nowrap; }
+    #card-front .badge { background-color: #f59e0b; font-size: 12px; padding: 2px 8px; border-radius: 9999px; color: white; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+    #card-front .info-table { width: 100%; font-size: 14px; color: white; border-spacing: 0; }
+    #card-front .info-table td { padding-left: 4px; vertical-align: top; }
+    #card-front .info-table td.label-cell { padding-right: 4px; padding-left: 0;}
+    #card-front .info-table p { margin: 0; white-space: nowrap; line-height: 1.4; }
+    #card-front .info-table .label { font-weight: 500; opacity: 0.8; }
+    #card-front .bottom-bar {
+        position: absolute; bottom: 0; left: 0; width: 100%; padding: 12px 24px;
+        border-top: 1px solid rgba(255,255,255,0.2); display: flex; justify-content: space-between;
+        font-size: 14px; color: rgba(255,255,255,0.9); z-index: 10;
+    }
+    #card-front .bottom-bar p { margin: 0; white-space: nowrap; line-height: 1.4; }
+    #card-front .bottom-bar .label { font-weight: 500; }
+    #card-front .bottom-bar-right { text-align: right;}
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-6 text-gray-800">
+
+  <div class="w-full max-w-md">
+    <svg
+      aria-label="山西财专信息科技学院分团委 第十次团员、学生代表大会"
+      class="mb-6"
+      style="width: 100%; display: block;"
+      viewBox="0 0 448 72"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <text x="50%" y="0"
+            style="font-family: '方正小标宋简体', 'Noto Serif SC', serif; font-weight: 700; font-size: 30px; fill: #b91c1c; text-anchor: middle; dominant-baseline: hanging;">
+        <tspan x="50%" dy="0em">山西财专信息科技学院分团委</tspan>
+        <tspan x="50%" dy="1.2em">第十次团员、学生代表大会</tspan>
+      </text>
+    </svg>
+
+    <div class="card-container">
+      <div id="card-loader" class="absolute inset-0 flex items-center justify-center bg-gray-100/80 backdrop-blur-sm z-50 rounded-lg hidden">
+        <div class="text-center">
+          <svg class="animate-spin h-8 w-8 text-[#b91c1c] mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="text-md font-semibold text-gray-700">正在加载代表证...</p>
+        </div>
+      </div>
+
+      <div id="card-scale">
+        <div id="card-front" class="card-front card-gradient watermark border-gold shadow-xl shadow-gold">
+          <div class="top-bar">
+            <div class="top-bar-left">
+              <img src="{% static 'images/th.png' %}" alt="团徽" style="width: 40px; height: 40px; margin-right: 12px;" />
+              <h1 style="font-size: 18px; font-weight: 700; letter-spacing: 0.05em; color: white; white-space: nowrap;">信息科技学院双代会代表证</h1>
+            </div>
+            <div class="top-bar-right" style="font-size: 12px; color: rgba(255,255,255,0.9);">
+              <p style="white-space: nowrap;">编号: <span id="card-number-val" style="font-family: monospace;">加载中...</span></p>
+              <p id="validity-val" style="white-space: nowrap;">有效期: 加载中...</p>
+            </div>
+          </div>
+          <div class="content-area">
+            <div class="photo-info-block">
+              <div class="photo-container">
+                <img id="delegate-photo" src="{% static 'images/信息工程学院 黄瑾.jpg' %}" alt="免冠照" />
+              </div>
+              <div class="info-details">
+                <div class="name-badge-line">
+                  <h2 id="delegate-name" class="name">加载中...</h2>
+                  <div id="delegate-badge" class="badge">正式代表</div>
+                </div>
+                <div>
+                  <table class="info-table">
+                    <tr>
+                      <td class="label-cell"><p class="label">性别</p><p id="gender-val">加载中...</p></td>
+                      <td><p class="label">政治面貌</p><p id="political-status-val">加载中...</p></td>
+                      <td><p class="label">学号</p><p id="student-id-val">加载中...</p></td>
+                    </tr>
+                    <tr>
+                      <td class="label-cell"><p class="label">代表团</p><p id="delegation-val">加载中...</p></td>
+                      <td colspan="2"><p class="label">班级</p><p id="class-name-val">加载中...</p></td>
+                    </tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bottom-bar">
+            <div>
+              <p class="label">发证单位</p>
+              <p id="issuing-authority-val">加载中...</p>
+            </div>
+            <div class="bottom-bar-right">
+              <p class="label">签发日期</p>
+              <p id="issue-date-val">加载中...</p>
+            </div>
+          </div>
+        </div>
+        <div class="card-back">
+          <img src="{% static 'images/th.png' %}" alt="团徽" style="width:35%; height:auto;" class="mb-6" /> 
+          <p class="text-xl font-bold text-white text-center" style="white-space: nowrap;">山西财专信息科技学院分团委<br>第十次团员、学生代表大会代表证</p>
+          <p class="text-2lg font-bold text-white text-center" style="white-space: nowrap;">2025年5月 中国·太原</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-full bg-white mt-8 rounded-xl shadow-lg p-6 border border-yellow-300">
+      <div class="flex items-center gap-4">
+        <div class="flex-1">
+          <h2 class="text-lg font-bold text-[#b91c1c] mb-2">会议签到二维码</h2>
+          <div id="signin-details" class="mb-2">
+            <p id="signin-status-text" class="text-sm">状态: <span class="font-semibold text-orange-600">未签到</span></p>
+            <p id="signin-time-text" class="text-sm text-gray-600 mt-1 hidden">签到时间: <span></span></p>
+          </div>
+          <p class="text-xs text-gray-500">开会前30分钟请进行签到<br>点击二维码可刷新当前签到状态。</p>
+        </div>
+        <!-- **** QR Code Area Start **** -->
+        <div id="qr-code-container" class="relative bg-gradient-to-br from-yellow-400 to-yellow-600 p-1 rounded-lg cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0" title="点击刷新签到状态">
+          <!-- This div is the white square for the QR code. Give it an explicit size. -->
+          <!-- It has p-1 (4px padding), and its content #qrcode is 100x100. So, 100 + 4*2 = 108px. -->
+          <div class="bg-white p-1 rounded-md w-[108px] h-[108px]"> 
+            <!-- The actual QR code will be generated inside this div by qrcode.js. -->
+            <!-- Its style="width: 100px; height: 100px;" defines its content size. -->
+            <div id="qrcode" class="flex items-center justify-center" style="width: 100px; height: 100px;"> 
+              <!-- Placeholder or content if QR fails to load can go here, though qrcode.js usually populates it -->
+            </div>
+          </div>
+          <!-- QR Code Loading Overlay. This is positioned to cover the 108x108px div above. -->
+          <!-- Its top-1 etc. offsets are relative to qr-code-container's padding box, making it cover qr-code-container's content box. -->
+          <!-- Since qr-code-container's content IS the 108x108px div, this overlay will be 108x108px. -->
+          <div id="qr-loading-overlay" class="absolute top-1 left-1 right-1 bottom-1 bg-white bg-opacity-95 flex flex-col items-center justify-center rounded-md hidden z-10">
+            <svg class="animate-spin h-8 w-8 text-[#b91c1c] mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-sm font-semibold text-gray-700">正在查询...</p>
+          </div>
+        </div>
+        <!-- **** QR Code Area End **** -->
+      </div>
+    </div>
+
+    <div class="w-full mt-8 grid grid-cols-2 gap-4">
+      <button id="download-btn" class="py-3 bg-gradient-to-r from-yellow-500 via-yellow-500 to-yellow-600 hover:from-yellow-600 hover:via-yellow-600 hover:to-yellow-700 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out">
+        保存电子版代表证
+      </button>
+      <button id="agenda-btn" class="py-3 bg-gradient-to-r from-red-500 via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-150 ease-in-out">
+        会议议程及须知
+      </button>
+    </div>
+
+    <div class="mt-10 text-center text-sm text-gray-600">
+      <p class="font-medium">山西省财政税务专科学校信息科技学院分团委</p>
+      <p class="text-xs mt-1">© {% now "Y" %} 版权所有 All Rights Reserved</p>
+    </div>
+  </div>
+
+  <!-- Modal Structure for Image Preview -->
+  <div id="image-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[100] hidden">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full relative">
+      <button id="modal-close-btn" class="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-3xl font-light leading-none">×</button>
+      <h3 class="text-xl font-semibold text-gray-800 mb-4">电子版代表证</h3>
+      <div class="mb-4 flex justify-center">
+        <img id="modal-image" src="" alt="电子版代表证预览" class="max-w-full h-auto rounded border" style="max-height: 60vh;" />
+      </div>
+      <p class="text-center text-sm text-gray-600">
+        手机端请长按图片保存，电脑端请右键点击图片选择“图片另存为”。
+      </p>
+    </div>
+  </div>
+
+  <!-- Modal Structure for Agenda and Instructions -->
+  <div id="agenda-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[100] hidden">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full relative overflow-y-auto" style="max-height: 80vh;">
+      <button id="agenda-modal-close-btn" class="absolute top-3 right-4 text-gray-500 hover:text-gray-800 text-3xl font-light leading-none z-10">×</button>
+      <h3 class="text-2xl font-bold text-center text-[#b91c1c] mb-6" style="font-family: '方正小标宋简体', 'Noto Serif SC', serif;">会议议程及须知</h3>
+      <div class="text-left space-y-6 text-gray-700" style="font-family: 'Noto Serif SC', serif;">
+          <div>
+              <h4 class="text-xl font-semibold text-gray-800 mb-3 border-b-2 border-[#b91c1c] pb-2">会议议程</h4>
+              <ol class="list-decimal ml-5 space-y-2 text-base">
+                  <li>大会开幕式，奏唱国歌；</li>
+                  <li>学院领导致辞；</li>
+                  <li>听取并审议《信息科技学院分团委学生分会工作报告》；</li>
+                  <li>各代表团分组讨论、酝酿候选人名单；</li>
+                  <li>选举产生新一届分团委委员、学生会主席团成员；</li>
+                  <li>宣布选举结果及通过各项决议；</li>
+                  <li>分团委书记致辞；</li>
+                  <li>大会闭幕式。</li>
+              </ol>
+          </div>
+          <div>
+              <h4 class="text-xl font-semibold text-gray-800 mb-3 border-b-2 border-[#b91c1c] pb-2">参会须知</h4>
+              <ol class="list-decimal ml-5 space-y-2 text-base">
+                  <li>请全体代表凭代表证提前15分钟进入会场，按指定区域就座；</li>
+                  <li>会议期间，请将手机调至静音或关闭状态，保持会场秩序；</li>
+                  <li>认真听取各项报告和发言，积极参与讨论，正确行使民主权利；</li>
+                  <li>会议期间，请服从大会统一安排，注意言行举止，展现良好风貌；</li>
+                  <li>如遇特殊情况需离开会场，请向本代表团团长请假；</li>
+                  <li>请注意保持会场清洁卫生，不随地乱扔杂物。</li>
+              </ol>
+          </div>
+      </div>
+      <div class="mt-8 text-center">
+        <button id="agenda-modal-understand-btn" class="py-2 px-6 bg-[#b91c1c] text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors">
+          我已了解
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    console.log("SCRIPT: Styling fix for QR area. Final version.");
+
+    // Element Cache
+    const cardScaleElement = document.getElementById("card-scale");
+    const cardContainerElement = document.querySelector(".card-container");
+    const cardLoader = document.getElementById('card-loader'); 
+    const imageModal = document.getElementById('image-modal');
+    const modalImage = document.getElementById('modal-image');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const delegatePhotoEl = document.getElementById('delegate-photo');
+    const delegateNameEl = document.getElementById('delegate-name');
+    const delegateBadgeEl = document.getElementById('delegate-badge');
+    const cardNumberValEl = document.getElementById('card-number-val');
+    const validityValEl = document.getElementById('validity-val');
+    const genderValEl = document.getElementById('gender-val');
+    const politicalStatusValEl = document.getElementById('political-status-val');
+    const studentIdValEl = document.getElementById('student-id-val');
+    const delegationValEl = document.getElementById('delegation-val');
+    const classNameValEl = document.getElementById('class-name-val');
+    const issuingAuthorityValEl = document.getElementById('issuing-authority-val');
+    const issueDateValEl = document.getElementById('issue-date-val');
+    const signinStatusSpan = document.getElementById('signin-status-text')?.querySelector('span');
+    const signinTimePara = document.getElementById('signin-time-text');
+    const signinTimeSpan = signinTimePara?.querySelector('span');
+    const qrCodeContainer = document.getElementById('qr-code-container');
+    const qrCodeEl = document.getElementById('qrcode');
+    const qrLoadingOverlay = document.getElementById('qr-loading-overlay'); 
+    const downloadButton = document.getElementById('download-btn');
+    const agendaModal = document.getElementById('agenda-modal');
+    const agendaModalCloseBtn = document.getElementById('agenda-modal-close-btn');
+    const agendaModalUnderstandBtn = document.getElementById('agenda-modal-understand-btn');
+    const agendaButton = document.getElementById('agenda-btn');
+    
+    // Configuration
+    const CARD_NOMINAL_WIDTH = 448;
+    const CARD_NOMINAL_HEIGHT = 288;
+    const initialCardNumber = "{{ card_number_from_url|default_if_none:'' }}";
+    const initialDelegateId = "{{ delegate_id_from_url|default_if_none:'' }}";
+    const defaultDelegatePhotoUrl = "{% static 'images/信息工程学院 黄瑾.jpg' %}";
+    const defaultPlaceholderPhotoUrl = "{% static 'images/th.png' %}";
+    const QR_COLOR_CHECKED_IN = '#22c55e'; // Tailwind green-500
+    const QR_COLOR_DEFAULT = '#dc2626';   // Original red
+
+    // State
+    let currentDelegateData = null;
+    let qrcodeInstance = null;
+
+    // --- UI & Data Functions ---
+    function showMainLoader(show) {
+      if (cardLoader) cardLoader.classList.toggle('hidden', !show);
+    }
+
+    function showQrLoading(show) {
+      if (qrLoadingOverlay) qrLoadingOverlay.classList.toggle('hidden', !show);
+      // Get the div that holds the actual QR code (sibling of overlay)
+      const actualQrHolder = qrLoadingOverlay.previousElementSibling.querySelector('#qrcode'); // Assumes #qrcode is inside the sibling
+      if (actualQrHolder) actualQrHolder.classList.toggle('hidden', show);
+    }
+
+
+    async function fetchDelegateData(identifier, type = 'id', isRefreshOnlyStatus = false) {
+      if (isRefreshOnlyStatus) {
+        showQrLoading(true);
+      } else {
+        showMainLoader(true);
+      }
+      
+      let apiUrl;
+      if (type === 'card_number') {
+        apiUrl = `/api/delegates/by-card-number/${identifier}/`;
+      } else {
+        apiUrl = `/api/delegates/${identifier}/`;
+      }
+
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          let errorDetail = `HTTP error! status: ${response.status}`;
+          try { const errorData = await response.json(); errorDetail = errorData.detail || errorData.error || errorDetail; } catch (e) { /* ignore */ }
+          throw new Error(errorDetail);
+        }
+        const data = await response.json();
+        currentDelegateData = data;
+
+        if (!isRefreshOnlyStatus) { 
+            populateCard(data);
+        }
+        updateSigninStatus(data.is_checked_in, data.check_in_time); 
+        
+        if (isRefreshOnlyStatus) {
+            console.log(`签到状态已刷新: ${data.is_checked_in ? '已签到' : '未签到'}`);
+        }
+
+      } catch (error) {
+        console.error(`获取代表信息失败 (${identifier}, type ${type}):`, error.message);
+        if (!isRefreshOnlyStatus) { 
+            if (delegateNameEl) delegateNameEl.textContent = "加载失败";
+            updateSigninStatus(false, null); 
+            currentDelegateData = null; 
+        } else {
+            console.error("刷新签到状态失败，UI将保留当前状态。");
+        }
+      } finally {
+        if (isRefreshOnlyStatus) {
+          showQrLoading(false);
+        } else {
+          showMainLoader(false);
+          applyResponsiveCardLayout(); 
+        }
+      }
+    }
+
+    function populateCard(data) {
+      // ... (populateCard function remains unchanged from previous version)
+      if (!data) return;
+      if (delegatePhotoEl) {
+          delegatePhotoEl.src = data.photo || defaultPlaceholderPhotoUrl;
+          delegatePhotoEl.onerror = () => { delegatePhotoEl.src = defaultPlaceholderPhotoUrl; }; 
+      }
+      if (delegateNameEl) delegateNameEl.textContent = data.name || 'N/A';
+      if (delegateBadgeEl) delegateBadgeEl.textContent = "正式代表"; 
+      if (cardNumberValEl) cardNumberValEl.textContent = data.card_number || 'N/A';
+      if (validityValEl) validityValEl.textContent = data.valid_until ? `有效期: ${new Date(data.valid_until).toLocaleDateString('zh-CN')}` : '有效期: N/A';
+      if (genderValEl) genderValEl.textContent = data.gender === 'M' ? '男' : (data.gender === 'F' ? '女' : 'N/A');
+      if (politicalStatusValEl) politicalStatusValEl.textContent = data.political_status || 'N/A';
+      if (studentIdValEl) studentIdValEl.textContent = data.student_id || 'N/A';
+      if (delegationValEl) delegationValEl.textContent = data.delegation || 'N/A';
+      if (classNameValEl) classNameValEl.textContent = data.class_name || 'N/A';
+      if (issuingAuthorityValEl) issuingAuthorityValEl.textContent = data.issuing_authority || 'N/A';
+      if (issueDateValEl) issueDateValEl.textContent = data.issue_date ? new Date(data.issue_date).toLocaleDateString('zh-CN') : 'N/A';
+    }
+
+    function generateOrUpdateQrCode(identifierData, color = QR_COLOR_DEFAULT) {
+      if (!qrCodeEl) return;
+      
+      qrCodeEl.innerHTML = ''; // Clear previous QR to ensure options apply correctly if instance exists
+      
+      if (!identifierData) { 
+          qrcodeInstance = null; // No data, no QR instance
+          return;
+      }
+
+      const qrDataToEncode = `DELEGATE_CARD_NUMBER:${identifierData}`;
+      qrcodeInstance = new QRCode(qrCodeEl, {
+        text: qrDataToEncode,
+        width: 100, // This is the actual QR code image size
+        height: 100,
+        colorDark: color,
+        colorLight: "#ffffff", // White background for the QR image itself
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+
+    function updateSigninStatus(isCheckedIn, checkInTimeStr) {
+      const qrColor = isCheckedIn ? QR_COLOR_CHECKED_IN : QR_COLOR_DEFAULT;
+      
+      if (isCheckedIn) {
+          if (signinStatusSpan) {
+            signinStatusSpan.textContent = "已签到";
+            signinStatusSpan.classList.remove('text-orange-600');
+            signinStatusSpan.classList.add('text-green-600');
+          }
+          if (signinTimePara && signinTimeSpan && checkInTimeStr) {
+            const checkInDate = new Date(checkInTimeStr);
+            signinTimeSpan.textContent = checkInDate.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            signinTimePara.classList.remove('hidden');
+          }
+          if (qrCodeContainer) {
+              qrCodeContainer.title = '已签到'; 
+              qrCodeContainer.classList.remove('from-yellow-400', 'to-yellow-600', 'hover:opacity-80');
+              qrCodeContainer.classList.add('from-green-500', 'to-green-600'); 
+          }
+        } else {
+          if (signinStatusSpan) {
+            signinStatusSpan.textContent = "未签到"; 
+            signinStatusSpan.classList.remove('text-green-600');
+            signinStatusSpan.classList.add('text-orange-600');
+          }
+          if (signinTimePara) {
+            signinTimePara.classList.add('hidden');
+          }
+          if (qrCodeContainer) {
+            qrCodeContainer.title = '点击刷新签到状态 (未签到)';
+            qrCodeContainer.classList.remove('from-green-500', 'to-green-600');
+            qrCodeContainer.classList.add('from-yellow-400', 'to-yellow-600', 'hover:opacity-80');
+          }
+        }
+      
+      const cardNumberToUse = currentDelegateData ? currentDelegateData.card_number : (initialCardNumber || null);
+      generateOrUpdateQrCode(cardNumberToUse, qrColor);
+    }
+
+    async function refreshSignInStatus() {
+      if (!currentDelegateData || !currentDelegateData.id) {
+        console.warn("代表信息尚未完全加载，无法立即刷新状态。请等待初始加载完成或稍后重试。");
+        if (!currentDelegateData && (initialCardNumber || initialDelegateId)) {
+            console.log("尝试执行初始代表数据加载...");
+            if (initialCardNumber) await fetchDelegateData(initialCardNumber, 'card_number', false);
+            else if (initialDelegateId) await fetchDelegateData(initialDelegateId, 'id', false);
+        }
+        return;
+      }
+
+      if (currentDelegateData.is_checked_in) {
+        console.log("状态已为“已签到”，无需再次查询服务器。");
+        return; 
+      }
+      await fetchDelegateData(currentDelegateData.id, 'id', true);
+    }
+
+    function showImageInModal(dataUrl) {
+      if (modalImage && imageModal) { modalImage.src = dataUrl; imageModal.classList.remove('hidden');}
+    }
+    function hideImageModal() {
+      if (imageModal) imageModal.classList.add('hidden');
+      if (modalImage) modalImage.src = "";
+    }
+    function showAgendaModal() { if (agendaModal) agendaModal.classList.remove('hidden'); }
+    function hideAgendaModal() { if (agendaModal) agendaModal.classList.add('hidden'); }
+
+    function applyResponsiveCardLayout() {
+      // ... (This function remains unchanged)
+      if (cardLoader && !cardLoader.classList.contains('hidden') && cardContainerElement && cardScaleElement) {
+         setTimeout(() => showMainLoader(false), 50);
+      }
+      if (!cardContainerElement || !cardScaleElement) return;
+      const containerWidth = cardContainerElement.offsetWidth;
+      let scaleFactor = containerWidth > 0 && CARD_NOMINAL_WIDTH > 0 ? containerWidth / CARD_NOMINAL_WIDTH : 1;
+      const containerHeight = CARD_NOMINAL_HEIGHT * scaleFactor;
+      cardContainerElement.style.height = `${containerHeight}px`;
+      const offsetX = (containerWidth - CARD_NOMINAL_WIDTH) / 2;
+      const offsetY = (containerHeight - CARD_NOMINAL_HEIGHT) / 2;
+      cardScaleElement.style.left = `${offsetX}px`;
+      cardScaleElement.style.top = `${offsetY}px`;
+      let currentTransform = `scale(${scaleFactor})`;
+      if (cardScaleElement.classList.contains("flipped")) {
+        currentTransform += ` rotateY(180deg)`;
+      }
+      cardScaleElement.style.transform = currentTransform;
+    }
+    function toggleFlip() {
+      if (!cardScaleElement) return;
+      cardScaleElement.classList.toggle("flipped");
+      applyResponsiveCardLayout();
+    }
+
+    function captureAndProcessCardImage(nodeToCapture, onCompleteCallback, onFinallyRestoreStateCallback) {
+        const exportScaleFactor = 3;
+        const originalStyles = {
+            cardScale: { transform: cardScaleElement.style.transform, top: cardScaleElement.style.top, left: cardScaleElement.style.left, transition: cardScaleElement.style.transition },
+            cardContainer: { height: cardContainerElement.style.height, overflow: cardContainerElement.style.overflow }
+        };
+        cardScaleElement.style.transition = 'none'; cardScaleElement.style.transform = 'scale(1) rotateY(0deg)';
+        cardScaleElement.style.top = '0px'; cardScaleElement.style.left = '0px';
+        cardContainerElement.style.height = `${CARD_NOMINAL_HEIGHT}px`; cardContainerElement.style.overflow = 'visible';
+
+        setTimeout(() => {
+            domtoimage.toPng(nodeToCapture, {
+                quality: 1, width: CARD_NOMINAL_WIDTH * exportScaleFactor, height: CARD_NOMINAL_HEIGHT * exportScaleFactor,
+                style: { 'width': `${CARD_NOMINAL_WIDTH}px`, 'height': `${CARD_NOMINAL_HEIGHT}px`, 'transform': `scale(${exportScaleFactor})`, 'transform-origin': 'top left', 'display': 'block', 'margin': '0' }
+            }).then(onCompleteCallback).catch(error => {
+                console.error('图片导出失败 (domtoimage.toPng):', error);
+            }).finally(() => {
+                cardScaleElement.style.transform = originalStyles.cardScale.transform;
+                cardScaleElement.style.top = originalStyles.cardScale.top; cardScaleElement.style.left = originalStyles.cardScale.left;
+                cardContainerElement.style.height = originalStyles.cardContainer.height; cardContainerElement.style.overflow = originalStyles.cardContainer.overflow;
+                if (onFinallyRestoreStateCallback) onFinallyRestoreStateCallback(); else applyResponsiveCardLayout();
+                setTimeout(() => { cardScaleElement.style.transition = originalStyles.cardScale.transition || 'transform 0.6s ease-in-out'; }, 50);
+            });
+        }, 150);
+    }
+    function prepareCardForModal() {
+        const nodeToCapture = document.getElementById('card-front');
+        if (!nodeToCapture) return;
+        const wasFlipped = cardScaleElement.classList.contains("flipped");
+        const onCompleteCapture = (dataUrl) => showImageInModal(dataUrl);
+        let onFinallyRestore;
+
+        if (wasFlipped) {
+            cardScaleElement.style.transition = 'none'; cardScaleElement.classList.remove("flipped");
+            onFinallyRestore = () => { cardScaleElement.classList.add("flipped"); applyResponsiveCardLayout(); };
+            requestAnimationFrame(() => requestAnimationFrame(() => captureAndProcessCardImage(nodeToCapture, onCompleteCapture, onFinallyRestore)));
+        } else {
+            onFinallyRestore = () => applyResponsiveCardLayout();
+            captureAndProcessCardImage(nodeToCapture, onCompleteCapture, onFinallyRestore);
+        }
+    }
+
+    // --- Event Listeners & Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+      showMainLoader(true); 
+
+      if (modalCloseBtn) modalCloseBtn.addEventListener('click', hideImageModal);
+      if (imageModal) imageModal.addEventListener('click', (event) => { if (event.target === imageModal) hideImageModal(); });
+      if (agendaButton) agendaButton.addEventListener('click', showAgendaModal);
+      if (agendaModalCloseBtn) agendaModalCloseBtn.addEventListener('click', hideAgendaModal);
+      if (agendaModalUnderstandBtn) agendaModalUnderstandBtn.addEventListener('click', hideAgendaModal);
+      if (agendaModal) agendaModal.addEventListener('click', (event) => { if (event.target === agendaModal) hideAgendaModal(); });
+
+      if (cardScaleElement) cardScaleElement.addEventListener("click", toggleFlip);
+      if (downloadButton) downloadButton.addEventListener('click', prepareCardForModal);
+      if (qrCodeContainer) qrCodeContainer.addEventListener('click', refreshSignInStatus);
+      
+      if (initialCardNumber) {
+        fetchDelegateData(initialCardNumber, 'card_number', false); 
+      } else if (initialDelegateId) {
+        fetchDelegateData(initialDelegateId, 'id', false); 
+      } else {
+        console.error("无法加载代表信息：缺少必要的代表标识符（卡号或ID）。");
+        if (delegateNameEl) delegateNameEl.textContent = "无效的代表标识";
+        updateSigninStatus(false, null); 
+        showMainLoader(false); 
+        applyResponsiveCardLayout(); 
+      }
+    });
+
+    window.addEventListener("load", () => { applyResponsiveCardLayout(); }); 
+    window.addEventListener("resize", applyResponsiveCardLayout);
+    window.addEventListener("orientationchange", () => setTimeout(applyResponsiveCardLayout, 150));
+
+  </script>
+</body>
+</html>
